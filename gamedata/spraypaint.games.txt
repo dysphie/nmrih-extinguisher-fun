@@ -1,0 +1,14 @@
+"Games"
+{
+	"nmrih"
+	{
+		"Offsets"
+		{
+			"CNMRiH_BaseZombie::GetShoved" 
+			{
+				"windows" "303"
+				"linux" "304"
+			}
+		}
+	}
+}
