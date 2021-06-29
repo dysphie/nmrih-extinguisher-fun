@@ -11,7 +11,7 @@ ConVars are saved to `cfg/sourcemod/plugin.extinguisher-fun.cfg`
 - sm_spraypaint_fuel (Default: `1000`)
   - How much paint extinguishers spawn with
 - sm_spraypaint_fuel_drain_rate (Default: `1`)
-  - Rate in seconds at which the extinguisher depletes. Set to 0 or lower for infinite fuel.
+  - Rate in seconds at which the extinguisher depletes. Set to 0 or lower for infinite paint.
 - sm_spraypaint_fuel_drain_amt (Default: `20`)
   - How much paint is used each interval
 - sm_spraypaint_range (Default: `200.0`)
