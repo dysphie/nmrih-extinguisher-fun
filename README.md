@@ -4,6 +4,8 @@ Supposed to be a joke, but people seemed to like it.
 Extinguishers can be used anywhere and are loaded with paint that stains surfaces and damages zombies.
 Paint is finite by default, you can see how much you have left by performing an ammo check.
 
+![image](https://user-images.githubusercontent.com/11559683/123832499-c802db80-d8db-11eb-96ff-727e68fbf05c.png)
+
 ### ConVars
 
 ConVars are saved to `cfg/sourcemod/plugin.extinguisher-fun.cfg`
