@@ -1,7 +1,7 @@
 # [NMRiH] Extinguisher Fun
 Supposed to be a joke, but people seemed to like it. 
 
-Extinguishers can be used anywhere and are loaded paint that stains surfaces and damages zombies.
+Extinguishers can be used anywhere and are loaded with paint that stains surfaces and damages zombies.
 Paint is finite by default, you can see how much you have left by performing an ammo check.
 
 ### ConVars
