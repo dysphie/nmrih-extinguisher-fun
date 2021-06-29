@@ -2,7 +2,7 @@
 Supposed to be a joke, but people seemed to like it. 
 
 Extinguishers can be used anywhere and are loaded with paint that stains surfaces and damages zombies.
-Paint is finite by default, you can see how much you have left by performing an ammo check.
+Paint is finite by default, you can see how much you have left by performing an ammo check (Default: R)
 
 ![image](https://user-images.githubusercontent.com/11559683/123833008-4fe8e580-d8dc-11eb-8dbe-1619c1e640fc.png)
 
