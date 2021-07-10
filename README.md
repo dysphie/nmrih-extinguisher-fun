@@ -11,7 +11,7 @@ Extinguishers can be used anywhere and are loaded with paint that stains surface
 ConVars are saved to `cfg/sourcemod/plugin.extinguisher-fun.cfg`
 
 - sm_spraypaint_range (Default: `200.0`)
-  - Range of the hose
+  - Fire extinguisher hose reach
 
 - sm_spraypaint_world_decal_interval (Default: `0.3`)
   - Global rate at which decals can be placed on brushes, in seconds
