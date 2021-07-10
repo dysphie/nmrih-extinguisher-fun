@@ -1,102 +1,101 @@
-#include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 
 #pragma semicolon 1
 #pragma newdecls required
 
-#define MAX_ENTITTIES 2048
-#define WORLDSPAWN 0
+#define MAX_ENTITIES 2048
+#define MAX_SURVIVORS 9
 
-float nextThinkTime[MAXPLAYERS+1];
-float objectSprayTime[MAXPLAYERS+1];
-float nextShovedTime[MAX_ENTITTIES+1];
-float nextDmgTime[MAX_ENTITTIES+1];
-float nextZedPaintTime[MAX_ENTITTIES+1];
-float nextDrainTime[MAX_ENTITTIES+1];
+float nextBspDecalTime;
+float nextEntDecalTime;
 
-int fuel[MAX_ENTITTIES+1];
-
-Handle shoveZombieFn;  
-int sprayDecal;
-Handle hudSync;
-
-bool lateloaded;
-
-ConVar cvThinkInterval, cvObjectSprayInterval, cvShoveInterval, cvDmgInterval;
-ConVar cvZedSprayInterval, cvDmgPerTick, cvSprayTexture, cvSprayRange, cvAlwaysFire;
-ConVar cvCheapMode, cvFuel, cvDrainRate, cvDrainAmt;
+float nextStaggerTime[MAX_ENTITIES+1] = {-1.0, ...};
+float nextDmgTime[MAX_ENTITIES+1] = {-1.0, ...};
+float nextThinkTime[MAX_SURVIVORS+1] = {-1.0, ...};
+float nextEntRepaintTime[MAX_ENTITIES+1] = {-1.0, ...};
 
 public Plugin myinfo = 
 {
-	name        = "Fire Extinguisher Fun",
-	author      = "Dysphie",
+	name = "Fire Extinguisher Fun",
+	author = "Dysphie",
 	description = "Extinguishers paint surfaces and damage zombies",
-	version     = "0.1.0",
-	url         = ""
+	version = "0.2.0",
+	url = ""
 };
 
+int sprayDecal;
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
-{
-	lateloaded = late;
-}
+ConVar cvFF;
+ConVar cvAlwaysFire;
+ConVar cvSprayRange;
+ConVar cvThinkRate;
+ConVar cvEntDecalRate;
+ConVar cvBspDecalRate;
+ConVar cvDmgPlayers;
+ConVar cvDmgZombies;
+ConVar cvShoveZombies;
+ConVar cvShoveZombiesRate;
+ConVar cvDmgRate;
+ConVar cvHumanDmgPerTick;
+ConVar cvZombieDmgPerTick;
+ConVar cvSprayTexture;
+ConVar cvEntRepaintRate;
+
+Handle hudSync;
+Handle fnShoveZombie;
+
+bool originalAlwaysFire;
 
 public void OnPluginStart()
 {
+	PrepSDKCalls();
+
 	hudSync = CreateHudSynchronizer();
 
-	cvFuel = CreateConVar("sm_spraypaint_fuel", "1000");
-	cvDrainRate = CreateConVar("sm_spraypaint_fuel_drain_rate", "1");
-	cvDrainAmt = CreateConVar("sm_spraypaint_fuel_drain_amt", "20");
-
+	cvFF = FindConVar("mp_friendlyfire");
 	cvAlwaysFire = FindConVar("sv_extinguisher_always_fire");
 	cvSprayRange = CreateConVar("sm_spraypaint_range", "200.0");
-	cvThinkInterval = CreateConVar("sm_spraypaint_think_interval", "0.1");
-	cvObjectSprayInterval = CreateConVar("sm_spraypaint_object_spray_interval", "0.1");
-	cvZedSprayInterval = CreateConVar("sm_spraypaint_zombie_spray_update_time", "5.0");
-	cvShoveInterval = CreateConVar("sm_spraypaint_stun_interval", "10.0");
-	cvDmgInterval = CreateConVar("sm_spraypaint_dmg_interval", "1.0");
-	cvDmgPerTick = CreateConVar("sm_spraypaint_dmg", "18");
-	cvCheapMode = CreateConVar("sm_spraypaint_props_clientonly", "0");
-	cvSprayTexture = CreateConVar("sm_spraypaint_spray_decal", "decals/decal_paintsplattergreen001_subrect");
+	cvThinkRate = CreateConVar("sm_spraypaint_think_interval", "0.1");
+
+	cvBspDecalRate = CreateConVar("sm_spraypaint_world_decal_interval", "0.3");
+	cvEntDecalRate = CreateConVar("sm_spraypaint_entity_decal_interval", "0.3");
+	cvEntRepaintRate = CreateConVar("sm_spraypaint_entity_repaint_interval", "3.0");
+
+	cvDmgPlayers = CreateConVar("sm_spraypaint_hurts_humans", "1");
+	cvDmgZombies = CreateConVar("sm_spraypaint_hurts_zombies", "1");
+
+	cvShoveZombies = CreateConVar("sm_spraypaint_stuns_zombies", "1");
+	cvShoveZombiesRate = CreateConVar("sm_spraypaint_stun_interval", "10.0");
+
+	cvDmgRate = CreateConVar("sm_spraypaint_dmg_interval", "1.0");
+
+	cvZombieDmgPerTick = CreateConVar("sm_spraypaint_zombie_dmg_per_tick", "30");
+	cvHumanDmgPerTick = CreateConVar("sm_spraypaint_human_dmg_per_tick", "5");
+
+	cvSprayTexture = CreateConVar("sm_spraypaint_spray_decal", "decals/decal_paintsplatterblue001");
+
+	cvAlwaysFire.AddChangeHook(OnCvAlwaysFireChanged);
 	cvSprayTexture.AddChangeHook(ConVarChangedSprayTexture);
-
-	GameData gamedata = new GameData("spraypaint.games");
-	if (!gamedata)
-		SetFailState("Failed to load QOL game data.");
-
-	int offset = gamedata.GetOffset("CNMRiH_BaseZombie::GetShoved");
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetVirtual(offset);
-	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
-	shoveZombieFn = EndPrepSDKCall();
-
-	if (!shoveZombieFn)
-		SetFailState("Failed to find offset for CNMRiH_BaseZombie::GetShoved");
-
-	delete gamedata;
-
-	if (lateloaded)
-	{
-		int e = -1;
-		while ((e = FindEntityByClassname(e, "tool_extinguisher")) != -1)
-			OnExtinguisherSpawned(e);
-	}
-
 
 	AutoExecConfig();
 }
 
 public void OnConfigsExecuted()
 {
+	originalAlwaysFire = cvAlwaysFire.BoolValue;
 	cvAlwaysFire.BoolValue = true;
-	cvAlwaysFire.AddChangeHook(ConVarChangedAlwaysFire);
 }
 
-public void ConVarChangedAlwaysFire(ConVar convar, const char[] oldValue, const char[] newValue)
+public void OnCvAlwaysFireChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	cvAlwaysFire.BoolValue = true;
+}
+
+public void OnPluginEnd()
+{
+	cvAlwaysFire.RemoveChangeHook(OnCvAlwaysFireChanged);
+	cvAlwaysFire.BoolValue = originalAlwaysFire;
 }
 
 public void ConVarChangedSprayTexture(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -111,40 +110,37 @@ public void OnMapStart()
 	sprayDecal = PrecacheDecal(decal);
 }
 
+void PrepSDKCalls()
+{
+	GameData gamedata = new GameData("spraypaint.games");
+	if (!gamedata)
+		SetFailState("Failed to load QOL game data.");
+
+	int offset = gamedata.GetOffset("CNMRiH_BaseZombie::GetShoved");
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetVirtual(offset);
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	fnShoveZombie = EndPrepSDKCall();
+
+	if (!fnShoveZombie)
+		SetFailState("Failed to find offset for CNMRiH_BaseZombie::GetShoved");
+
+	delete gamedata;
+}
+
 public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weaponDontUseThis, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
 {
-	float curTime = GetGameTime();
+	float curTime = GetTickedTime();
 	if (curTime < nextThinkTime[client])
 		return;
 
-	nextThinkTime[client] = curTime + cvThinkInterval.FloatValue;
+	nextThinkTime[client] = curTime + cvThinkRate.FloatValue;
 	
 	int curWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if (curWeapon == -1)
+	if (curWeapon == -1 || 
+		!HasEntProp(curWeapon, Prop_Send, "m_bHoseFiring") || 
+		!GetEntProp(curWeapon, Prop_Send, "m_bHoseFiring"))
 		return;
-
-	char classname[20];
-	GetEdictClassname(curWeapon, classname, sizeof(classname));
-	if (!StrEqual(classname, "tool_extinguisher"))
-		return;
-
-	if (!GetEntProp(curWeapon, Prop_Send, "m_bHoseFiring"))
-		return;
-
-	if (buttons & IN_RELOAD)
-		DisplayFuel(client, fuel[curWeapon]);
-
-	if (cvDrainAmt.IntValue > 0)
-	{
-		if (fuel[curWeapon] <= 0)
-			return;
-
-		if (curTime >= nextDrainTime[curWeapon])
-		{
-			fuel[curWeapon] -= cvDrainAmt.IntValue;
-			nextDrainTime[curWeapon] = curTime + cvDrainRate.FloatValue;
-		}
-	}
 
 	float eyePos[3], eyeAng[3], endPos[3];
 	GetClientEyePosition(client, eyePos);
@@ -157,83 +153,109 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 		return;
 
 	int target = TR_GetEntityIndex();
-	if (!IsValidEdict(target))
+	if (target == -1)
 		return;
 
-	if (target == WORLDSPAWN && curTime >= objectSprayTime[client])
+	if (target == 0)
 	{
-		TE_Start("World Decal");
-		TE_WriteVector("m_vecOrigin", endPos);
-		TE_WriteNum("m_nIndex", sprayDecal);
-		TE_SendToAll();
-
-		objectSprayTime[client] = curTime + cvObjectSprayInterval.FloatValue;
+		TryWorldSplat(endPos);
 	}
 	else 
 	{
-		bool isNPC = IsZombie(target);
-		if (isNPC)
+		TryEntitySplat(endPos, eyePos, target, TR_GetHitBoxIndex());
+
+		if (IsEntityPlayer(target))
+		{
+			OnPlayerSprayed(target, client, curWeapon);
+		}
+		else if (IsEntityZombie(target))
 		{
 			OnZombieSprayed(target, client, curWeapon);
-
-			if (curTime < nextZedPaintTime[target])
-				return;
-			nextZedPaintTime[target] = curTime + cvZedSprayInterval.FloatValue;
 		}
-		else 
-		{
-			if (curTime < objectSprayTime[client])
-				return;
-			objectSprayTime[client] = curTime + cvObjectSprayInterval.FloatValue;
-		}
-
-		TE_Start("Entity Decal");
-		TE_WriteVector("m_vecOrigin", endPos);
-		TE_WriteVector("m_vecStart", eyePos);
-		TE_WriteNum("m_nEntity", target);
-		TE_WriteNum("m_nHitbox", TR_GetHitGroup());
-		TE_WriteNum("m_nIndex", sprayDecal);
-		if (!isNPC && cvCheapMode.BoolValue)
-			TE_SendToClient(client);
-		else
-			TE_SendToAll();
 	}
 }
 
-void DisplayFuel(int client, int amount)
+void TryEntitySplat(float endPos[3], float startPos[3], int target, int hitbox)
 {
-	SetHudTextParams(
-		.x = 0.9,
-		.y = 0.9,
-		.holdTime = 0.7,
-		.r = 0xFF,
-		.g = 0xFF,
-		.b = 0xFF,
-		.a = 255);
+	float curTime = GetTickedTime();
 
-	ShowSyncHudText(client, hudSync, "%d", amount);
+	// Check global decal limit
+	if (curTime < nextEntDecalTime)
+		return;
+	nextEntDecalTime = curTime + cvEntDecalRate.FloatValue;
+
+	// Check individual decal limit
+	if (curTime < nextEntRepaintTime[target])
+		return;
+	nextEntRepaintTime[target] = curTime + cvEntRepaintRate.FloatValue;
+
+	TE_Start("Entity Decal");
+	TE_WriteVector("m_vecOrigin", endPos);
+	TE_WriteVector("m_vecStart", startPos);
+	TE_WriteNum("m_nEntity", target);
+	TE_WriteNum("m_nHitbox", hitbox);
+	TE_WriteNum("m_nIndex", sprayDecal);
+	TE_SendToAll();
+}
+
+void TryWorldSplat(float endPos[3])
+{
+	float curTime = GetTickedTime();
+	if (curTime < nextBspDecalTime)
+		return;
+
+	TE_Start("World Decal");
+	TE_WriteVector("m_vecOrigin", endPos);
+	TE_WriteNum("m_nIndex", sprayDecal);
+	TE_SendToAll();
+	nextBspDecalTime = curTime + cvBspDecalRate.FloatValue;
+}
+
+void OnPlayerSprayed(int client, int attacker, int weapon)
+{
+	float curTime = GetTickedTime();
+	if (curTime < nextDmgTime[client])
+		return;
+
+	if (cvDmgPlayers.BoolValue && (cvFF.BoolValue || IsClientInfected(client)))
+	{
+		// FIXME: Doesn't actually play drowning sounds
+		SDKHooks_TakeDamage(client, weapon, attacker, cvHumanDmgPerTick.FloatValue, DMG_DROWN);
+		nextDmgTime[client] = curTime + cvDmgRate.FloatValue;
+	}
 }
 
 void OnZombieSprayed(int zombie, int attacker, int weapon)
 {
-	float curTime = GetGameTime();
+	float curTime = GetTickedTime();
 
-	if (curTime > nextDmgTime[zombie])
-	{
-		SDKHooks_TakeDamage(zombie, weapon, attacker, cvDmgPerTick.FloatValue);
-		nextDmgTime[zombie] = curTime + cvDmgInterval.FloatValue;
+	if (cvDmgZombies.BoolValue)
+	{	
+		if (curTime >= nextDmgTime[zombie])
+		{
+			SDKHooks_TakeDamage(zombie, weapon, attacker, cvZombieDmgPerTick.FloatValue, DMG_POISON);
+			nextDmgTime[zombie] = curTime + cvDmgRate.FloatValue;
+		}
 	}
 
-	if (curTime > nextShovedTime[zombie])
-	{
-		SDKCall(shoveZombieFn, zombie, attacker);
-		nextShovedTime[zombie] = curTime + cvShoveInterval.FloatValue;
+	if (cvShoveZombies.BoolValue)
+	{	
+		if (curTime >= nextStaggerTime[zombie])
+		{
+			SDKCall(fnShoveZombie, zombie, attacker);
+			nextStaggerTime[zombie] = curTime + cvShoveZombiesRate.FloatValue;
+		}
 	}
 }
 
-bool IsZombie(int entity)
+bool IsEntityZombie(int entity)
 {
 	return HasEntProp(entity, Prop_Send, "_headSplit");
+}
+
+bool IsEntityPlayer(int entity)
+{
+	return 0 < entity <= MaxClients;
 }
 
 public bool TraceFilter_DontHitSelf(int entity, int contentsmask, int client)
@@ -241,23 +263,17 @@ public bool TraceFilter_DontHitSelf(int entity, int contentsmask, int client)
 	return entity != client;
 }
 
+bool IsClientInfected(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flInfectionTime") != -1.0;
+}
+
 public void OnEntityDestroyed(int entity)
 {
-	if (0 < entity <= MAX_ENTITTIES)
+	if (!IsValidEdict(entity))
 	{
-		nextZedPaintTime[entity] = 0.0;
-		nextDmgTime[entity] = 0.0;
-		nextShovedTime[entity] = 0.0;
+		nextStaggerTime[entity] = -1.0;
+		nextEntRepaintTime[entity] = -1.0;
+		nextDmgTime[entity] = -1.0;
 	}
-}
-
-public void OnEntityCreated(int entity, const char[] classname)
-{
-	if (StrEqual(classname, "tool_extinguisher"))
-		OnExtinguisherSpawned(entity);
-}
-
-void OnExtinguisherSpawned(int extinguisher)
-{
-	fuel[extinguisher] = cvFuel.IntValue;
 }
