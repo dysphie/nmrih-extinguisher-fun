@@ -20,7 +20,7 @@ public Plugin myinfo =
 	name = "Fire Extinguisher Fun",
 	author = "Dysphie",
 	description = "Extinguishers paint surfaces and damage zombies",
-	version = "0.2.0",
+	version = "0.2.1",
 	url = ""
 };
 
@@ -270,7 +270,7 @@ bool IsClientInfected(int client)
 
 public void OnEntityDestroyed(int entity)
 {
-	if (!IsValidEdict(entity))
+	if (IsValidEdict(entity))
 	{
 		nextStaggerTime[entity] = -1.0;
 		nextEntRepaintTime[entity] = -1.0;
