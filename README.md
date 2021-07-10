@@ -1,4 +1,4 @@
-# [NMRiH] Extinguisher Fun
+# [NMRiH] Extinguisher Spray Paint
 Supposed to be a joke, but people seemed to like it. 
 
 Extinguishers can be used anywhere and are loaded with paint that stains surfaces and damages zombies.
