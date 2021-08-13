@@ -20,7 +20,7 @@ public Plugin myinfo =
 	name = "Fire Extinguisher Fun",
 	author = "Dysphie",
 	description = "Extinguishers paint surfaces and damage zombies",
-	version = "0.2.1",
+	version = "0.2.2",
 	url = ""
 };
 
@@ -158,7 +158,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 
 	if (target == 0)
 	{
-		TryWorldSplat(endPos);
+		TryWorldSplat(client, endPos);
 	}
 	else 
 	{
@@ -198,7 +198,7 @@ void TryEntitySplat(float endPos[3], float startPos[3], int target, int hitbox)
 	TE_SendToAll();
 }
 
-void TryWorldSplat(float endPos[3])
+void TryWorldSplat(int client, float endPos[3])
 {
 	float curTime = GetTickedTime();
 	if (curTime < nextBspDecalTime)
@@ -207,7 +207,7 @@ void TryWorldSplat(float endPos[3])
 	TE_Start("World Decal");
 	TE_WriteVector("m_vecOrigin", endPos);
 	TE_WriteNum("m_nIndex", sprayDecal);
-	TE_SendToAll();
+	TE_SendToClient(client);
 	nextBspDecalTime = curTime + cvBspDecalRate.FloatValue;
 }
 
