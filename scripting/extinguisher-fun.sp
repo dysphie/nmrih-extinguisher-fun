@@ -42,7 +42,6 @@ ConVar cvZombieDmgPerTick;
 ConVar cvSprayTexture;
 ConVar cvEntRepaintRate;
 
-Handle hudSync;
 Handle fnShoveZombie;
 
 bool originalAlwaysFire;
@@ -50,8 +49,6 @@ bool originalAlwaysFire;
 public void OnPluginStart()
 {
 	PrepSDKCalls();
-
-	hudSync = CreateHudSynchronizer();
 
 	cvFF = FindConVar("mp_friendlyfire");
 	cvAlwaysFire = FindConVar("sv_extinguisher_always_fire");
