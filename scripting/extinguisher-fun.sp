@@ -41,6 +41,7 @@ ConVar cvHumanDmgPerTick;
 ConVar cvZombieDmgPerTick;
 ConVar cvSprayTexture;
 ConVar cvEntRepaintRate;
+ConVar cvPaintPlayers;
 
 Handle fnShoveZombie;
 
@@ -58,6 +59,8 @@ public void OnPluginStart()
 	cvBspDecalRate = CreateConVar("sm_spraypaint_world_decal_interval", "0.3");
 	cvEntDecalRate = CreateConVar("sm_spraypaint_entity_decal_interval", "0.3");
 	cvEntRepaintRate = CreateConVar("sm_spraypaint_entity_repaint_interval", "3.0");
+
+	cvPaintPlayers = CreateConVar("sm_spraypaint_paints_humans", "1");
 
 	cvDmgPlayers = CreateConVar("sm_spraypaint_hurts_humans", "1");
 	cvDmgZombies = CreateConVar("sm_spraypaint_hurts_zombies", "1");
@@ -155,7 +158,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 
 	if (target == 0)
 	{
-		TryWorldSplat(client, endPos);
+		TryWorldSplat(endPos);
 	}
 	else 
 	{
@@ -174,6 +177,9 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 
 void TryEntitySplat(float endPos[3], float startPos[3], int target, int hitbox)
 {
+	if (0 < target <= MaxClients && !cvPaintPlayers.BoolValue)
+		return;
+
 	float curTime = GetTickedTime();
 
 	// Check global decal limit
@@ -195,7 +201,7 @@ void TryEntitySplat(float endPos[3], float startPos[3], int target, int hitbox)
 	TE_SendToAll();
 }
 
-void TryWorldSplat(int client, float endPos[3])
+void TryWorldSplat(float endPos[3])
 {
 	float curTime = GetTickedTime();
 	if (curTime < nextBspDecalTime)
@@ -204,7 +210,7 @@ void TryWorldSplat(int client, float endPos[3])
 	TE_Start("World Decal");
 	TE_WriteVector("m_vecOrigin", endPos);
 	TE_WriteNum("m_nIndex", sprayDecal);
-	TE_SendToClient(client);
+	TE_SendToAll();
 	nextBspDecalTime = curTime + cvBspDecalRate.FloatValue;
 }
 
