@@ -20,7 +20,7 @@ public Plugin myinfo =
 	name = "Fire Extinguisher Fun",
 	author = "Dysphie",
 	description = "Extinguishers paint surfaces and damage zombies",
-	version = "0.2.2",
+	version = "0.2.3",
 	url = ""
 };
 
