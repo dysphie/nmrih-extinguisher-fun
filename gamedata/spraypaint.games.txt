@@ -6,8 +6,8 @@
 		{
 			"CNMRiH_BaseZombie::GetShoved" 
 			{
-				"windows" "303"
-				"linux" "304"
+				"windows" "308"
+				"linux" "309"
 			}
 		}
 	}
